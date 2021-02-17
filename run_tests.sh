@@ -18,7 +18,7 @@ LCYAN='\033[1;36m'
 LGRAY='\033[0;37m'
 WHITE='\033[1;37m'
 
-tests=`find ./tests -name "*.test"`
+tests=`find ./tests -name "*.test.out"`
 tests=($tests)
 success=0
 

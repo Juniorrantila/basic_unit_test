@@ -1,15 +1,14 @@
-CC			:=	clang
-INCLUDE	:=
-CFLAGS	:=	$(INCLUDE)
-BUILDDIR	:=	build
-SRCDIR	:=	src
-TSRCDIR	:=	tests/src
-CSRC		:=	$(wildcard $(SRCDIR)/*.c)
-TSRC		:=	$(wildcard $(TSRCDIR)/*.c)
-BIN		:=	a.out
-TBIN		:= $(patsubst $(TSRCDIR)/%.test.c, tests/%.test, $(TSRC))
-OBJS		:=	$(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
-TOBJS		:= $(filter-out $(BUILDDIR)/main.o, $(OBJS))
+CC       := clang
+CFLAGS   :=
+BUILDDIR := build
+SRCDIR   := src
+TSRCDIR  := tests/src
+CSRC     := $(wildcard $(SRCDIR)/*.c)
+TSRC     := $(wildcard $(TSRCDIR)/*.c)
+BIN      := a.out
+TBIN     := $(patsubst $(TSRCDIR)/%.test.c, tests/%.test, $(TSRC))
+OBJS     := $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
+TOBJS    := $(filter-out $(BUILDDIR)/main.o, $(OBJS))
 
 all: $(BIN)
 

@@ -1,5 +1,6 @@
 CC       := clang
-CFLAGS   :=
+INCLUDE  := include
+CFLAGS   := $(addprefix -I, $(INCLUDE)) -O3
 BUILDDIR := build
 SRCDIR   := src
 TSRCDIR  := tests/src
@@ -29,3 +30,4 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 .PHONY: clean
 clean:
 	$(RM) $(BUILDDIR)/*.o
+	$(RM) tests/*.out

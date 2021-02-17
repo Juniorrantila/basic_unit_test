@@ -22,6 +22,8 @@ tests=`find ./tests -name "*.test.out"`
 tests=($tests)
 success=0
 
+echo -n "" > ./tests.log
+
 #echo tests names: $tests
 count=${#tests[@]}
 echo
@@ -31,8 +33,8 @@ echo
 for ((i=0; i<$count; i++))
 do
    testname=${tests[i]}
-   echo -e -n ${CYAN}$testname'\t'${YELLOW}$((i+1))/$count'\t'
-   $testname
+   echo -e -n ${CYAN}$testname'\t'${YELLOW}$((i+1))/$count'\t'${NC}
+   $testname >> ./tests.log
    statu=$?
    if [ $statu == 0 ]
    then

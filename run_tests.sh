@@ -33,7 +33,7 @@ echo
 for ((i=0; i<$count; i++))
 do
    testname=${tests[i]}
-   echo -e -n ${CYAN}$testname'\t'${YELLOW}$((i+1))/$count'\t'${NC}
+   echo -e -n ${YELLOW}$((i+1))/$count'\t'${CYAN}$testname'\t'${NC}
    $testname >> ./tests.log
    statu=$?
    if [ $statu == 0 ]
@@ -41,7 +41,7 @@ do
       echo -e ${GREEN}Success${NC}
       ((success=success+1))
    else
-      echo -e ${RED}Failure ${NC}$statu
+      echo -e ${RED}Failure ${NC}"("$statu")"
    fi
 done
 

@@ -31,3 +31,4 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 clean:
 	$(RM) $(BUILDDIR)/*.o
 	$(RM) tests/*.out
+	$(RM) *.log

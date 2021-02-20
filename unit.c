@@ -4,8 +4,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <sys/syslimits.h>
 #include <sys/mman.h>
+#ifdef __linux__
+   #include <linux/limits.h>
+#elif __APPLE__
+   #include <sys/syslimits.h>
+#endif
 
 #define NC        "\x1b[0;0m"
 #define BLACK     "\x1b[0;30m"
@@ -61,7 +65,7 @@ int main(int argc, char *argv[]){
       perror("DIR");
       exit(1);
    }
-   printf("\nRunning "YELLOW"%d"NC" tests\n\n", elems);
+   printf("\nRunning " YELLOW "%d" NC " tests\n\n", elems);
    for (int i = 0; (de = readdir(dr));){
       if (strncmp(de->d_name+de->d_namlen - ext_size, ext, ext_size) == 0){
          program[i] = malloc(PATH_MAX*sizeof(char));

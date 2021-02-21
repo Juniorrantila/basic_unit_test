@@ -38,6 +38,7 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 
 .PHONY: clean
 clean:
+	$(RM) $(BIN)
 	$(RM) $(BUILDDIR)/*.o
 	$(RM) *.o
 	$(RM) tests/*.out

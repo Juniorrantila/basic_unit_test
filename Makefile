@@ -1,18 +1,18 @@
-CC       := clang
-INCLUDE  := include
-CFLAGS   := $(addprefix -I, $(INCLUDE)) -O3
-BUILDDIR := build
-SRCDIR   := src
+CC			:= clang
+INCLUDE	:= include
+CFLAGS	:= $(addprefix -I, $(INCLUDE)) -O3
+BUILDDIR	:= build
+SRCDIR	:= src
 TDIR		:= tests
-TSRCDIR  := tests/src
-CSRC     := $(wildcard $(SRCDIR)/*.c)
-TSRC     := $(wildcard $(TSRCDIR)/*.c)
-BIN      := unit
+TSRCDIR	:= tests/src
+CSRC		:= $(wildcard $(SRCDIR)/*.c)
+TSRC		:= $(wildcard $(TSRCDIR)/*.c)
+BIN		:= unit
 UNIT		:= ./unit
-TBIN     := $(patsubst $(TSRCDIR)/%.test.c, tests/%.test.out, $(TSRC))
-OBJS     := $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
-TOBJS    := $(filter-out $(BUILDDIR)/main.o, $(OBJS))
-INSTALL 	:= install
+TBIN		:= $(patsubst $(TSRCDIR)/%.test.c, tests/%.test.out, $(TSRC))
+OBJS		:= $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
+TOBJS		:= $(filter-out $(BUILDDIR)/main.o, $(OBJS))
+INSTALL	:= install
 
 all: $(BIN)
 

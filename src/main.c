@@ -82,7 +82,6 @@ int main(int argc, char *argv[]){
       exit(1);
    }
    char** program = calloc(elems, sizeof(char*));
-   //int* exit_code = calloc(elems, sizeof(int));
    int* exit_code = mmap(NULL, elems*sizeof(int), PROT_READ | PROT_WRITE, 
                     MAP_SHARED | MAP_ANONYMOUS, -1, 0);
    pid_t* pids =  mmap(NULL, elems*sizeof(pid_t), PROT_READ | PROT_WRITE,

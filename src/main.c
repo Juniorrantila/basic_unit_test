@@ -36,7 +36,7 @@
    if (pid < 0) errndie("Fork"); \
    else if (pid == 0)
 
-
+#define cmp(a, b) strncmp(a, b, strlen(b))
 
 int main(int argc, char *argv[]){
 
@@ -46,13 +46,20 @@ int main(int argc, char *argv[]){
       case 3:
          ext = argv[2];
       case 2:
-         dir = argv[1];
-         if (strncmp(argv[1], "-h", 2) == 0){
-            printf("Usage: %s [test_dir] [extension]\n", argv[0]);
-            exit(0);
-         }
+         if (cmp(argv[1], "-help") == 0)
+            goto usage;
+         else if (cmp(argv[1], "--help") == 0)
+            goto usage;
+         else dir = argv[1];
       case 1:
          break;
+      usage:
+         printf("Usage: %s [test_dir] [extension]\n\n"
+                "test_dir:\tdefault = %s\n"
+                "extension:\tdefault = %s\n"
+                "\n",
+                argv[0], dir, ext);
+         exit(0);
    }
    const int ext_size = strlen(ext);
    

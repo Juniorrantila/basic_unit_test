@@ -53,26 +53,38 @@
 
 #define cmp(a, b) strncmp(a, b, strlen(b))
 
+void config();
+
 int main(int argc, char *argv[]){
 
-   char* dir = "./tests";
-   char* ext = ".test.out";
+   char* dir = getenv("UNIT_DIR");
+   if (dir == NULL)
+      dir = "tests";
+   
+   char* ext = getenv("UNIT_EXT");
+   if (ext == NULL)
+      ext = ".test.out";
+
    switch(argc){
       case 3:
          ext = argv[2];
       case 2:
          if (cmp(argv[1], "-help") == 0)
             goto usage;
-         else if (cmp(argv[1], "--help") == 0)
-            goto usage;
          else dir = argv[1];
       case 1:
          break;
       usage:
-         printf("Usage: %s [test_dir] [extension]\n\n"
-                "test_dir:\tdefault = %s\n"
-                "extension:\tdefault = %s\n"
-                "\n",
+         printf("USAGE: %s [directory | options] [extension]\n"
+                "\n"
+                "SETTINGS:\n"
+                "\tdirectory (UNIT_DIR) = %s\n"
+                "\textension (UNIT_EXT) = %s\n"
+                "\n"
+                "OPTIONS:\n"
+                "\t-help\tShow help message\n"
+                "\n"
+                ,
                 argv[0], dir, ext);
          exit(0);
    }

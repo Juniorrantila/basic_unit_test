@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #ifdef __linux__
    #include <linux/limits.h>
 #elif __APPLE__
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]){
    }
    int elems = 0;
    while ((de = readdir(dr)) != NULL){
-      if (strncmp(de->d_name+de->d_namlen - ext_size, ext, ext_size) == 0){
+      if (strncmp(de->d_name+strlen(de->d_name) - ext_size, ext, ext_size) == 0){
          elems++;
       }
    }
@@ -93,7 +94,7 @@ int main(int argc, char *argv[]){
       exit(1);
    }
    for (int i = 0; (de = readdir(dr));){
-      if (strncmp(de->d_name+de->d_namlen - ext_size, ext, ext_size) == 0){
+      if (strncmp(de->d_name+strlen(de->d_name) - ext_size, ext, ext_size) == 0){
          program[i] = malloc(PATH_MAX*sizeof(char));
          snprintf(program[i], PATH_MAX, "%s/%s", dir, de->d_name);
          i++;

@@ -30,6 +30,20 @@
 #define LGRAY     "\x1b[0;37m"
 #define WHITE     "\x1b[1;37m"
 
+#ifdef __linux__
+    #define NUMBERS_C YELLOW
+    #define TESTNAM_C LCYAN
+    #define SUCCESS_C LGREEN
+    #define FAILURE_C LRED
+    #define MESSAGE_C LPURPLE
+#elif __APPLE__
+    #define NUMBERS_C YELLOW
+    #define TESTNAM_C CYAN
+    #define SUCCESS_C GREEN
+    #define FAILURE_C RED
+    #define MESSAGE_C PURPLE
+#endif
+
 #define errndie(msg) do {perror(msg); exit(1);} while(0)
 
 #define spoon() \
@@ -105,7 +119,7 @@ int main(int argc, char *argv[]){
    printf("\nRunning " YELLOW "%d" NC " tests\n\n", elems);
    pid_t pid = 0;
    for (int i = 0; i<elems; i++){
-      printf(YELLOW "%d/%d\t" CYAN "%s\t" PURPLE "Started\n", i+1, elems, program[i]);
+      printf(NUMBERS_C "%d/%d\t" TESTNAM_C "%s\t" MESSAGE_C "Started\n", i+1, elems, program[i]);
       spoon(){
          spoon(){
             char* log = malloc(PATH_MAX*sizeof(char));
@@ -132,20 +146,20 @@ int main(int argc, char *argv[]){
    int success = 0;
    for (int i = 0; i<elems; i++){ 
       waitpid(pids[i], NULL, 0);
-      printf(YELLOW "%d/%d\t" CYAN "%s\t", i+1, elems, program[i]);
+      printf(NUMBERS_C "%d/%d\t" TESTNAM_C "%s\t", i+1, elems, program[i]);
       if (exit_code[i])
-         printf(RED "Failure " NC "(%d)\n", exit_code[i]);
+         printf(FAILURE_C "Failure " NC "(%d)\n", exit_code[i]);
       else {
-         printf(GREEN "Success\n");
+         printf(SUCCESS_C "Success\n");
          success++;
       }
    }
    printf("\n");
   
    if (success == elems)
-      printf(GREEN "All tests passed!\n\n" NC);
+      printf(SUCCESS_C "All tests passed!\n\n" NC);
    else
-      printf(YELLOW "%d " NC "out of " YELLOW "%d " NC
+      printf(NUMBERS_C "%d " NC "out of " NUMBERS_C "%d " NC
             "succeeded\n\n", success, elems);
 
    munmap(exit_code, elems*sizeof(int));

@@ -53,8 +53,6 @@
 
 #define cmp(a, b) strncmp(a, b, strlen(b))
 
-void config();
-
 int main(int argc, char *argv[]){
 
    char* dir = getenv("UNIT_DIR");

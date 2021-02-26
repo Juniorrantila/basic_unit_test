@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #ifdef __linux__
    #include <linux/limits.h>
 #elif __APPLE__
@@ -86,18 +87,19 @@ int main(int argc, char *argv[]){
                 argv[0], dir, ext);
          exit(0);
    }
+   const unsigned dir_len = strlen(dir);
 
    int ext_count = 1;
-   for (unsigned i = 0; i<strlen(ext); i++){
-      if (ext[i] == ';'){
+   for (unsigned i = 0, ext_len=strlen(ext); i<ext_len; i++){
+      if (ext[i] == ';' && i != ext_len){
          ext_count++;
       }
    }
    char* exts[ext_count];
    int ext_sizes[ext_count];
    exts[0] = ext;
-   for (unsigned i=0, ext_idx=1; i<strlen(ext); i++){
-      if (ext[i] == ';'){
+   for (unsigned i=0, ext_idx=1, ext_len=strlen(ext); i<ext_len; i++){
+      if (ext[i] == ';' && i != ext_len){
         ext[i] = '\0';
         exts[ext_idx++] = &ext[i]+1;
       }
@@ -152,6 +154,14 @@ int main(int argc, char *argv[]){
    }
    closedir(dr);
 
+   char logs_folder_path[PATH_MAX];
+   {
+      snprintf(logs_folder_path, PATH_MAX, "%s/%s/logs", getenv("PWD"), dir);
+      struct stat st = {0};
+      if (stat(logs_folder_path, &st) == -1){
+         mkdir(logs_folder_path, S_IRWXU | S_IRWXG | S_IRWXO);
+      }
+   }
    printf("\nRunning " YELLOW "%d" NC " tests\n\n", elems);
    pid_t pid = 0;
    for (int i = 0; i<elems; i++){
@@ -159,10 +169,12 @@ int main(int argc, char *argv[]){
       spoon(){
          spoon(){
             char* log = malloc(PATH_MAX*sizeof(char));
-            snprintf(log, PATH_MAX, "%s.log", program[i]);
+            snprintf(log, PATH_MAX, "%s/%s.log", logs_folder_path, program[i]+dir_len+1);
             if (log){
                fflush(stdout);
+               fflush(stderr);
                freopen(log, "w", stdout);
+               freopen(log, "w", stderr);
             }
             free(log);
             argv[0] = program[i];

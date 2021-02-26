@@ -13,93 +13,70 @@
    #include <sys/syslimits.h>
 #endif
 
-#define NC        "\x1b[0;0m"
-#define BLACK     "\x1b[0;30m"
-#define DGRAY     "\x1b[1;30m"
-#define RED       "\x1b[0;31m"
-#define LRED      "\x1b[1;31m"
-#define GREEN     "\x1b[0;32m"
-#define LGREEN    "\x1b[1;32m"
-#define BROWN     "\x1b[0;33m"
-#define YELLOW    "\x1b[1;33m"
-#define BLUE      "\x1b[0;34m"
-#define LBLUE     "\x1b[1;34m"
-#define PURPLE    "\x1b[0;35m"
-#define LPURPLE   "\x1b[1;35m"
-#define CYAN      "\x1b[0;36m"
-#define LCYAN     "\x1b[1;36m"
-#define LGRAY     "\x1b[0;37m"
-#define WHITE     "\x1b[1;37m"
-
+#include "util.h"
+#include "color.h"
 #ifdef __linux__
-    #define NUMBERS_C YELLOW
-    #define TESTNAM_C LCYAN
-    #define SUCCESS_C LGREEN
-    #define FAILURE_C LRED
-    #define MESSAGE_C LPURPLE
+    #define C_NUMBERS YELLOW
+    #define C_TESTNAM LCYAN
+    #define C_SUCCESS LGREEN
+    #define C_FAILURE LRED
+    #define C_MESSAGE LPURPLE
 #elif __APPLE__
-    #define NUMBERS_C YELLOW
-    #define TESTNAM_C CYAN
-    #define SUCCESS_C GREEN
-    #define FAILURE_C RED
-    #define MESSAGE_C PURPLE
+    #define C_NUMBERS YELLOW
+    #define C_TESTNAM CYAN
+    #define C_SUCCESS GREEN
+    #define C_FAILURE RED
+    #define C_MESSAGE PURPLE
 #endif
 
-#define errndie(msg) do {perror(msg); exit(1);} while(0)
-
-#define spoon() \
-   pid = fork(); \
-   if (pid < 0) errndie("Fork"); \
-   else if (pid == 0)
-
-#define cmp(a, b) strncmp(a, b, strlen(b))
+#define DEFAULT_DIR "tests"
+#define DEFAULT_EXT ".test.out"
 
 int main(int argc, char *argv[]){
 
    char* dir = getenv("UNIT_DIR");
    if (dir == NULL)
-      dir = "tests";
+      dir = DEFAULT_DIR;
    
    char* ext = getenv("UNIT_EXT");
    if (ext == NULL)
-      ext = ".test.out";
+      ext = DEFAULT_EXT;
 
    switch(argc){
+      default:
       case 3:
          ext = argv[2];
       case 2:
-         if (cmp(argv[1], "-help") == 0)
-            goto usage;
+         if (cmp(argv[1], "-help") == 0) goto usage;
          else dir = argv[1];
       case 1:
          break;
       usage:
-         printf("USAGE: %s [directory | options] [extension]\n"
-                "\n"
-                "SETTINGS:\n"
-                "\tdirectory (UNIT_DIR) = %s\n"
-                "\textension (UNIT_EXT) = %s\n"
-                "\n"
-                "OPTIONS:\n"
-                "\t-help\tShow help message\n"
-                "\n"
-                ,
-                argv[0], dir, ext);
-         exit(0);
+      printf("USAGE: %s [directory | options] [extension]\n"
+             "\n"
+             "SETTINGS:\n"
+             "\tdirectory (UNIT_DIR) = %s\n"
+             "\textension (UNIT_EXT) = %s\n"
+             "\n"
+             "OPTIONS:\n"
+             "\t-help\tShow help message\n"
+             "\n"
+             ,
+             argv[0], dir, ext);
+      exit(0);
    }
    const unsigned dir_len = strlen(dir);
 
    int ext_count = 1;
    for (unsigned i = 0, ext_len=strlen(ext); i<ext_len; i++){
-      if (ext[i] == ';' && i != ext_len){
-         ext_count++;
-      }
+      if (ext[i] == ';') ext_count++;
    }
+   
    char* exts[ext_count];
    int ext_sizes[ext_count];
    exts[0] = ext;
    for (unsigned i=0, ext_idx=1, ext_len=strlen(ext); i<ext_len; i++){
-      if (ext[i] == ';' && i != ext_len){
+      if (ext[i] == ';'){
         ext[i] = '\0';
         exts[ext_idx++] = &ext[i]+1;
       }
@@ -108,12 +85,10 @@ int main(int argc, char *argv[]){
       ext_sizes[i] = strlen(exts[i]);
    }
    
-   struct dirent *de;
+   struct dirent* de;
    DIR* dr = opendir(dir);
-   if (dr == NULL){
-      perror("DIR");
-      exit(1);
-   }
+   if (dr == NULL)
+      errndie("DIR");
    int elems = 0;
    while ((de = readdir(dr)) != NULL){
       for (int i = 0; i<ext_count; i++){
@@ -140,10 +115,8 @@ int main(int argc, char *argv[]){
                   MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
    dr = opendir(dir);
-   if (dr == NULL){
-      perror("DIR");
-      exit(1);
-   }
+   if (dr == NULL)
+      errndie("DIR");
    for (int i = 0; (de = readdir(dr));){
       for (int j = 0; j<ext_count; j++){
          if (strncmp(de->d_name+strlen(de->d_name) - ext_sizes[j], exts[j], ext_sizes[j]) == 0){
@@ -157,29 +130,27 @@ int main(int argc, char *argv[]){
    }
    closedir(dr);
 
-   char logs_folder_path[PATH_MAX];
+   char logs_dir_path[PATH_MAX];
    {
-      snprintf(logs_folder_path, PATH_MAX, "%s/%s/logs", getenv("PWD"), dir);
+      snprintf(logs_dir_path, PATH_MAX, "%s/%s/logs", getenv("PWD"), dir);
       struct stat st = {0};
-      if (stat(logs_folder_path, &st) == -1){
-         mkdir(logs_folder_path, S_IRWXU | S_IRWXG | S_IRWXO);
+      if (stat(logs_dir_path, &st) == -1){
+         mkdir(logs_dir_path, S_IRWXU | S_IRWXG | S_IRWXO);
       }
    }
    printf("\nRunning " YELLOW "%d" NC " tests\n\n", elems);
    pid_t pid = 0;
+   
    for (int i = 0; i<elems; i++){
-      printf(NUMBERS_C "%d/%d\t" TESTNAM_C "%s\t" MESSAGE_C "Started\n", i+1, elems, program[i]);
+      //printf(C_NUMBERS "%d/%d\t" C_TESTNAM "%s\t" C_MESSAGE "Started\n", i+1, elems, program[i]);
       spoon(){
          spoon(){
-            char* log = malloc(PATH_MAX*sizeof(char));
-            snprintf(log, PATH_MAX, "%s/%s.log", logs_folder_path, program[i]+dir_len+1);
-            if (log){
-               fflush(stdout);
-               fflush(stderr);
-               freopen(log, "w", stdout);
-               freopen(log, "w", stderr);
-            }
-            free(log);
+            char log[PATH_MAX*sizeof(char)];
+            snprintf(log, PATH_MAX, "%s/%s.log", logs_dir_path, program[i]+dir_len+1);
+            fflush(stdout);
+            fflush(stderr);
+            freopen(log, "w", stdout);
+            freopen(log, "w", stderr);
             argv[0] = program[i];
             if (execvp(program[i], argv))
                errndie(program[i]);
@@ -188,6 +159,11 @@ int main(int argc, char *argv[]){
          wait(&status);
          if (WIFEXITED(status)){
             exit_code[i] = WEXITSTATUS(status);
+            printf(C_NUMBERS "%d/%d\t" C_TESTNAM "%s\t", i+1, elems, program[i]);
+            if (exit_code[i])
+                printf(C_FAILURE "Failure " NC "(%d)\n", exit_code[i]);
+            else
+                printf(C_SUCCESS "Success\n");
          }
          exit(0);
       }
@@ -197,22 +173,18 @@ int main(int argc, char *argv[]){
    int success = 0;
    for (int i = 0; i<elems; i++){ 
       waitpid(pids[i], NULL, 0);
-      printf(NUMBERS_C "%d/%d\t" TESTNAM_C "%s\t", i+1, elems, program[i]);
-      if (exit_code[i])
-         printf(FAILURE_C "Failure " NC "(%d)\n", exit_code[i]);
-      else {
-         printf(SUCCESS_C "Success\n");
+      if (exit_code[i] == 0)
          success++;
-      }
    }
    printf("\n");
   
    if (success == elems)
-      printf(SUCCESS_C "All tests passed!\n\n" NC);
+      printf(C_SUCCESS "All tests passed!\n\n" NC);
    else
-      printf(NUMBERS_C "%d " NC "out of " NUMBERS_C "%d " NC
+      printf(C_NUMBERS "%d " NC "out of " C_NUMBERS "%d " NC
             "succeeded\n\n", success, elems);
 
+   munmap(pids, elems*sizeof(pid_t));
    munmap(exit_code, elems*sizeof(int));
    for (int i = 0; i<elems; i++){
       free(program[i]);

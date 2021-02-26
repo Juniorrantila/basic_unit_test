@@ -148,7 +148,6 @@ int main(int argc, char *argv[]){
       for (int j = 0; j<ext_count; j++){
          if (strncmp(de->d_name+strlen(de->d_name) - ext_sizes[j], exts[j], ext_sizes[j]) == 0){
             if (de->d_type != DT_DIR && de->d_name[0] != '.'){
-               printf(RED"%s\n", de->d_name);
                program[i] = malloc(PATH_MAX*sizeof(char));
                snprintf(program[i], PATH_MAX, "%s/%s", dir, de->d_name);
                i++;

@@ -86,7 +86,25 @@ int main(int argc, char *argv[]){
                 argv[0], dir, ext);
          exit(0);
    }
-   const int ext_size = strlen(ext);
+
+   int ext_count = 1;
+   for (unsigned i = 0; i<strlen(ext); i++){
+      if (ext[i] == ';'){
+         ext_count++;
+      }
+   }
+   char* exts[ext_count];
+   int ext_sizes[ext_count];
+   exts[0] = ext;
+   for (unsigned i=0, ext_idx=1; i<strlen(ext); i++){
+      if (ext[i] == ';'){
+        ext[i] = '\0';
+        exts[ext_idx++] = &ext[i]+1;
+      }
+   }
+   for (int i = 0; i<ext_count; i++){
+      ext_sizes[i] = strlen(exts[i]);
+   }
    
    struct dirent *de;
    DIR* dr = opendir(dir);
@@ -96,14 +114,20 @@ int main(int argc, char *argv[]){
    }
    int elems = 0;
    while ((de = readdir(dr)) != NULL){
-      if (strncmp(de->d_name+strlen(de->d_name) - ext_size, ext, ext_size) == 0){
-         elems++;
+      for (int i = 0; i<ext_count; i++){
+         if (strncmp(de->d_name+strlen(de->d_name) - ext_sizes[i], exts[i], ext_sizes[i]) == 0){
+            elems++;
+         }
       }
    }
    closedir(dr);
 
    if (elems == 0){
-      fprintf(stderr, "There are no %s files in %s.\n", ext, dir);
+      fprintf(stderr, "There are no ");
+      for (int i = 0; i<ext_count; i++){
+         fprintf(stderr, "%s, ", exts[i]);
+      }
+      fprintf(stderr, "\b\b files in %s.\n", dir);
       exit(1);
    }
    char** program = calloc(elems, sizeof(char*));
@@ -118,10 +142,12 @@ int main(int argc, char *argv[]){
       exit(1);
    }
    for (int i = 0; (de = readdir(dr));){
-      if (strncmp(de->d_name+strlen(de->d_name) - ext_size, ext, ext_size) == 0){
-         program[i] = malloc(PATH_MAX*sizeof(char));
-         snprintf(program[i], PATH_MAX, "%s/%s", dir, de->d_name);
-         i++;
+      for (int j = 0; j<ext_count; j++){
+         if (strncmp(de->d_name+strlen(de->d_name) - ext_sizes[j], exts[j], ext_sizes[j]) == 0){
+            program[i] = malloc(PATH_MAX*sizeof(char));
+            snprintf(program[i], PATH_MAX, "%s/%s", dir, de->d_name);
+            i++;
+         }
       }
    }
    closedir(dr);

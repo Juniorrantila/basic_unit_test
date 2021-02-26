@@ -118,7 +118,8 @@ int main(int argc, char *argv[]){
    while ((de = readdir(dr)) != NULL){
       for (int i = 0; i<ext_count; i++){
          if (strncmp(de->d_name+strlen(de->d_name) - ext_sizes[i], exts[i], ext_sizes[i]) == 0){
-            elems++;
+            if (de->d_type != DT_DIR && de->d_name[0] != '.')
+               elems++;
          }
       }
    }
@@ -146,9 +147,12 @@ int main(int argc, char *argv[]){
    for (int i = 0; (de = readdir(dr));){
       for (int j = 0; j<ext_count; j++){
          if (strncmp(de->d_name+strlen(de->d_name) - ext_sizes[j], exts[j], ext_sizes[j]) == 0){
-            program[i] = malloc(PATH_MAX*sizeof(char));
-            snprintf(program[i], PATH_MAX, "%s/%s", dir, de->d_name);
-            i++;
+            if (de->d_type != DT_DIR && de->d_name[0] != '.'){
+               printf(RED"%s\n", de->d_name);
+               program[i] = malloc(PATH_MAX*sizeof(char));
+               snprintf(program[i], PATH_MAX, "%s/%s", dir, de->d_name);
+               i++;
+            }
          }
       }
    }

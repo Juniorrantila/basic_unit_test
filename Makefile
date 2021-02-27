@@ -1,6 +1,6 @@
 CC       := clang
 INCLUDE  := include
-CFLAGS   := $(addprefix -I, $(INCLUDE)) -O3 -Wall -Wextra
+CFLAGS   := $(addprefix -I, $(INCLUDE)) -O3 -Wall -Wextra -std=c99
 BUILDDIR := build
 SRCDIR   := src
 TDIR     := tests

@@ -3,3 +3,5 @@
 -Wextra
 -I
 ../include
+-I
+../deps/jrutil/include

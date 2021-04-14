@@ -1,46 +1,55 @@
 CC       := clang
-INCLUDE  := include
-CFLAGS   := $(addprefix -I, $(INCLUDE)) -O3 -Wall -Wextra -std=c99
-BUILDDIR := build
-SRCDIR   := src
-TDIR     := tests
-TSRCDIR  := tests/src
-CSRC     := $(wildcard $(SRCDIR)/*.c)
-TSRC     := $(wildcard $(TSRCDIR)/*.c)
-BIN      := unit
 UNIT     := ./unit
-TBIN     := $(patsubst $(TSRCDIR)/%.test.c, tests/%.test.out, $(TSRC))
-OBJS     := $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
-TOBJS    := $(filter-out $(BUILDDIR)/main.o, $(OBJS))
 INSTALL  := install
 
-all: $(BIN)
+INCLUDE  := include deps/jrutil/include
+INCLUDE  := $(addprefix -I, $(INCLUDE))
+CFLAGS   := -O3 $(INCLUDE)
 
-install: $(BIN)
-	$(INSTALL) $(BIN) /usr/local/bin
+LIB_DIRS := deps/jrutil/
+LIB_DIRS := $(addprefix -L, $(LIB_DIRS))
+LIBS     := jrutil
+LIBS     := $(addprefix -l, $(LIBS))
 
-uninstall:
-	$(RM) /usr/local/bin/$(BIN)
+BIN      := unit
+SUBDIRS  := tests deps/jrutil
 
-.PHONY: test
-test: $(TBIN) $(UNIT)
-	@$(UNIT) $(TDIR)
+BUILDDIR := build
+SRCDIR   := src
+CSRC     := $(wildcard $(SRCDIR)/*.c)
+OBJS     := $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
+
+TESTDIR  := tests/bin
+
+.PHONY: all
+all: $(SUBDIRS) $(BIN)
 
 $(BIN): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $^ $(CFLAGS) $(LIB_DIRS) $(LIBS) -o $@
 
-$(TBIN): $(TOBJS)
-	$(CC) $(CFLAGS) $^ $(patsubst tests/%.test.out, $(TSRCDIR)/%.test.c, $@) -o $@
+.PHONY: $(SUBDIRS)
+$(SUBDIRS):
+	$(MAKE) -C $@
+
+.PHONY: test
+test:
+	@$(UNIT) $(TESTDIR)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+.PHONY: install
+install: $(BIN)
+	$(INSTALL) $(BIN) /usr/local/bin
+
+.PHONY: uninstall
+uninstall:
+	$(RM) /usr/local/bin/$(BIN)
+
 .PHONY: clean
 clean:
 	$(RM) $(BIN)
 	$(RM) $(BUILDDIR)/*.o
-	$(RM) *.o
-	$(RM) tests/*.out
-	$(RM) *.log
-	$(RM) $(TDIR)/*.log
+	$(MAKE) clean -C tests
+	$(MAKE) clean -C deps/jrutil

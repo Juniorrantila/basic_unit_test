@@ -39,7 +39,7 @@
 #define DEFAULT_EXT ".test.out"
 #define DELIM ':'
 
-_Noreturn void usage(int);
+#define HASHMAP_INIT_SIZE 1024
 
 int main(int argc, char *argv[]){
 
@@ -62,11 +62,10 @@ int main(int argc, char *argv[]){
 		case 1:
 			break;
 	}
-	const unsigned dir_len = strlen(dir);
+	const size_t dir_len = strlen(dir);
 
 	int ext_count = fndelims(ext, DELIM) + 1;
 
-	// create array of strings
 	char* exts[ext_count];
 	if (splitn(exts, ext_count, ext, strlen(ext), DELIM)){
 		fprintf(stderr,
@@ -78,17 +77,30 @@ int main(int argc, char *argv[]){
 		ext_sizes[i] = strlen(exts[i]);
 	}
 
+	const size_t map_cap = HASHMAP_INIT_SIZE;
+	const char** files = mmap(NULL, map_cap*sizeof(char*),
+						PROT_READ | PROT_WRITE,
+						MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
 	// find amount of matching files
 	struct dirent* de;
 	DIR* dr = opendir(dir);
 	if (dr == NULL)
-		errndie(dir);
+		errndie(1, "%s", dir);
 	int elems = 0;
 	while ((de = readdir(dr)) != NULL){
 		for (int i = 0; i<ext_count; i++){
-			if (endcmp(de->d_name, exts[i]) == 0){
-				if (de->d_type != DT_DIR && de->d_name[0] != '.')
-					elems++;
+			if (de->d_type != DT_DIR && de->d_name[0] != '.'){
+				if (endcmp(de->d_name, exts[i]) == 0){
+					if (jrmap_find(files, map_cap, de->d_name, strlen(de->d_name)) == -1){
+						char* copy = strdup(de->d_name);
+						if (copy == NULL)
+							errndie(1, "Could not copy string");
+						if (jrmap_add(files, map_cap, copy, strlen(copy)) == -1 )
+							errndie(1, "Could not add string '%s' to hashmap", copy);
+						elems++;
+					}
+				}
 			}
 		}
 	}
@@ -106,6 +118,20 @@ int main(int argc, char *argv[]){
 	char** program = mmap(NULL, elems*sizeof(char*),
 						PROT_READ | PROT_WRITE,
 						MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	
+	for (size_t i = 0; i<elems; i++){
+		program[i] = mmap(NULL, PATH_MAX*sizeof(char),
+						PROT_READ | PROT_WRITE,
+						MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	}
+
+	// filepath for mathing files
+	for (size_t i = 0, j = 0; i<map_cap; i++){
+		if (files[i]){
+			snprintf(program[j++], PATH_MAX, "%s/%s",
+					dir, files[i]);
+		}
+	}
 
 	int* exit_code = mmap(NULL, elems*sizeof(int),
 						PROT_READ | PROT_WRITE,
@@ -114,26 +140,6 @@ int main(int argc, char *argv[]){
 	pid_t* pids = mmap(NULL, elems*sizeof(pid_t),
 					PROT_READ | PROT_WRITE,
 					MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-
-	// save filepath for mathing files
-	dr = opendir(dir);
-	if (dr == NULL)
-		errndie(dir);
-	for (int i = 0; (de = readdir(dr));){
-		for (int j = 0; j<ext_count; j++){
-			if (endcmp(de->d_name, exts[j]) == 0){
-				if (de->d_type != DT_DIR && de->d_name[0] != '.'){
-					program[i] = mmap(NULL, PATH_MAX*sizeof(char),
-									PROT_READ | PROT_WRITE,
-									MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-					snprintf(program[i], PATH_MAX, "%s/%s",
-							dir, de->d_name);
-					i++;
-				}
-			}
-		}
-	}
-	closedir(dr);
 
 	char logs_dir_path[PATH_MAX];
 	{
@@ -144,11 +150,11 @@ int main(int argc, char *argv[]){
 			mkdir(logs_dir_path, S_IRWXU | S_IRWXG | S_IRWXO);
 		}
 	}
-	
+
 	if (dir[0] != '/')
 		printf("\nRunning " C_NUM "%d" NC " tests in %s/%s\n\n",
 				elems, getenv("PWD"), dir);
-	else 
+	else
 		printf("\nRunning " C_NUM "%d" NC " tests in %s\n\n",
 				elems, dir);
 	pid_t pid = 0;
@@ -205,6 +211,11 @@ int main(int argc, char *argv[]){
 		success, ((success*100)/elems));
 
 #ifdef PEDANTIC
+	// free all the memory
+	for (int i = 0; i<map_cap; i++){
+		free(files[i]);
+	}
+	munmap(files, map_cap*sizeof(char*));
 	munmap(pids, elems*sizeof(pid_t));
 	munmap(exit_code, elems*sizeof(*exit_code));
 	for (int i = 0; i<elems; i++){
@@ -215,12 +226,12 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 
-_Noreturn void usage(int ret){
+static _Noreturn void usage(int ret){
 	printf("USAGE: %s [directory | options] [extension]\n"
 		"\n"
 		"SETTINGS:\n"
 		"\tdirectory (UNIT_DIR) = %s\n"
-		"\textens:ion (UNIT_EXT) = %s\n"
+		"\textension (UNIT_EXT) = %s\n"
 		"\n"
 		"OPTIONS:\n"
 		"\t-h --help\tShow help message\n"

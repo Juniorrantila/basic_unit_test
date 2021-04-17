@@ -39,7 +39,10 @@
 #define DEFAULT_EXT ".test.out"
 #define DELIM ':'
 
-#define HASHMAP_INIT_SIZE 1024
+#define MAXFILES 1024
+#define HASHMAP_SIZE MAXFILES*2
+
+#define NO_MEMORY_ALLOCATION
 
 int main(int argc, char *argv[]){
 
@@ -77,12 +80,24 @@ int main(int argc, char *argv[]){
 		ext_sizes[i] = strlen(exts[i]);
 	}
 
-	const size_t map_cap = HASHMAP_INIT_SIZE;
-	const char** files = mmap(NULL, map_cap*sizeof(char*),
+#ifdef NO_MEMORY_ALLOCATION
+	static char* filesmap[HASHMAP_SIZE];
+	static char filepaths[MAXFILES][PATH_MAX];
+#else
+	char** filesmap = mmap(NULL, HASHMAP_SIZE*sizeof(char*),
 						PROT_READ | PROT_WRITE,
 						MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	char** filepaths = mmap(NULL, MAXFILES*sizeof(char*),
+						PROT_READ | PROT_WRITE,
+						MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	for (size_t i = 0; i<MAXFILES; i++){
+		filepaths[i] = mmap(NULL, PATH_MAX*sizeof(char),
+							PROT_READ | PROT_WRITE,
+							MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	}
+#endif
 
-	// find amount of matching files
+	// find matching files
 	struct dirent* de;
 	DIR* dr = opendir(dir);
 	if (dr == NULL)
@@ -92,14 +107,17 @@ int main(int argc, char *argv[]){
 		for (int i = 0; i<ext_count; i++){
 			if (de->d_type != DT_DIR && de->d_name[0] != '.'){
 				if (endcmp(de->d_name, exts[i]) == 0){
-					if (jrmap_find(files, map_cap, de->d_name, strlen(de->d_name)) == -1){
-						char* copy = strdup(de->d_name);
-						if (copy == NULL)
-							errndie(1, "Could not copy string");
-						if (jrmap_add(files, map_cap, copy, strlen(copy)) == -1 )
-							errndie(1, "Could not add string '%s' to hashmap", copy);
+					size_t len = snprintf(filepaths[elems], PATH_MAX, "%s/%s", dir, de->d_name);
+					if (jrmap_find((const void**)filesmap, HASHMAP_SIZE, filepaths[elems], len) == -1){
+						if (jrmap_add((const void**)filesmap, HASHMAP_SIZE, filepaths[elems], len) == -1)
+							errndie(1, "Could not add string '%s' to hashmap", filepaths[elems]);
 						elems++;
 					}
+					#ifdef PEDANTIC
+					else {
+						memset(filepaths[elems], 0, len*sizeof(char)); // overwrite prematurely added string
+					}
+					#endif
 				}
 			}
 		}
@@ -115,87 +133,66 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
-	char** program = mmap(NULL, elems*sizeof(char*),
-						PROT_READ | PROT_WRITE,
-						MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	
-	for (size_t i = 0; i<elems; i++){
-		program[i] = mmap(NULL, PATH_MAX*sizeof(char),
-						PROT_READ | PROT_WRITE,
-						MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	}
 
-	// filepath for mathing files
-	for (size_t i = 0, j = 0; i<map_cap; i++){
-		if (files[i]){
-			snprintf(program[j++], PATH_MAX, "%s/%s",
-					dir, files[i]);
-		}
-	}
-
-	int* exit_code = mmap(NULL, elems*sizeof(int),
-						PROT_READ | PROT_WRITE,
-						MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-
+#ifdef NO_MEMORY_ALLOCATION
+	static pid_t pids[MAXFILES];
+#else
 	pid_t* pids = mmap(NULL, elems*sizeof(pid_t),
 					PROT_READ | PROT_WRITE,
 					MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-
-	char logs_dir_path[PATH_MAX];
+#endif
+	
+	char* logs_dir_path = "logs";
 	{
-		snprintf(logs_dir_path, PATH_MAX, "%s/%s/logs",
-				getenv("PWD"), dir);
 		struct stat st = {0};
 		if (stat(logs_dir_path, &st) == -1){
 			mkdir(logs_dir_path, S_IRWXU | S_IRWXG | S_IRWXO);
 		}
 	}
 
-	if (dir[0] != '/')
-		printf("\nRunning " C_NUM "%d" NC " tests in %s/%s\n\n",
-				elems, getenv("PWD"), dir);
-	else
-		printf("\nRunning " C_NUM "%d" NC " tests in %s\n\n",
-				elems, dir);
+	printf("\nRunning " C_NUM "%d " NC "tests in %s\n\n",
+			elems, dir);
+
 	pid_t pid = 0;
 	for (int i = 0; i<elems; i++){
 		spoon(){
 			spoon(){
 				char log[PATH_MAX*sizeof(char)];
 				snprintf(log, PATH_MAX, "%s/%s.log",
-						logs_dir_path, program[i]+dir_len+1);
+						logs_dir_path, filepaths[i]+dir_len+1);
 				fflush(stdout);
 				fflush(stderr);
 				freopen(log, "w", stdout);
 				freopen(log, "w", stderr);
-				argv[0] = program[i];
-				if (execvp(program[i], argv)){
+				argv[0] = filepaths[i];
+				if (execvp(filepaths[i], argv)){
 					fprintf(stderr, "Could not execute %s\n",
-							program[i]);
+							filepaths[i]);
 					exit(126);
 				}
 			}
 			int status;
 			wait(&status);
 			if (WIFEXITED(status)){
-				exit_code[i] = WEXITSTATUS(status);
-				printf(C_NUM "%d/%d\t" C_TEST "%s:\t" NC,
-						i+1, elems, program[i]);
-				if (exit_code[i])
+				status = WEXITSTATUS(status);
+				printf(C_NUM "%d/%d\t" C_TEST "%s" NC ":\t",
+						i+1, elems, filepaths[i]);
+				if (status)
 					printf(C_NO "Failure " NC "(%d)\n" NC,
-							exit_code[i]);
+							status);
 				else
 					printf(C_YES "Success\n" NC);
 			}
-			exit(0);
+			exit(status);
 		}
 		pids[i] = pid;
 	}
 
 	int success = 0;
 	for (int i = 0; i<elems; i++){
-		waitpid(pids[i], NULL, 0);
-		if (exit_code[i] == 0)
+		int status;
+		waitpid(pids[i], &status, 0);
+		if (status == 0)
 			success++;
 	}
 	printf("\n");
@@ -210,18 +207,16 @@ int main(int argc, char *argv[]){
 		elems-success, (((elems-success)*100)/elems),
 		success, ((success*100)/elems));
 
-#ifdef PEDANTIC
+#if defined(PEDANTIC) && !defined(NO_MEMORY_ALLOCATION)
 	// free all the memory
-	for (int i = 0; i<map_cap; i++){
-		free(files[i]);
-	}
-	munmap(files, map_cap*sizeof(char*));
 	munmap(pids, elems*sizeof(pid_t));
-	munmap(exit_code, elems*sizeof(*exit_code));
-	for (int i = 0; i<elems; i++){
-		munmap(program[i], PATH_MAX*sizeof(**program));
+	
+	for (size_t i = 0; i<MAXFILES; i++){
+		munmap(filepaths[i], PATH_MAX*sizeof(char));
 	}
-	munmap(program, elems*sizeof(*program));
+	munmap(filepaths, MAXFILES*sizeof(char*));
+
+	munmap(filesmap, HASHMAP_SIZE*sizeof(void*));
 #endif
 	return 0;
 }

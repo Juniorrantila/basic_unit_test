@@ -4,7 +4,7 @@ INSTALL  := install
 
 INCLUDE  := include deps/jrutil/include
 INCLUDE  := $(addprefix -I, $(INCLUDE))
-CFLAGS   := -O3 $(INCLUDE)
+CFLAGS   := -O3 -fopenmp $(INCLUDE)
 
 LIB_DIRS := deps/jrutil/
 LIB_DIRS := $(addprefix -L, $(LIB_DIRS))

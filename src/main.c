@@ -1,6 +1,6 @@
 #define _DEFAULT_SOURCE
 
-#include "jrutil.h"
+#include <jrutil/jrutil.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,7 +111,8 @@ int main(int argc, char *argv[]){
 					if (jrmap_find((const void**)filesmap, HASHMAP_SIZE, filepaths[elems], len) == -1){
 						if (jrmap_add((const void**)filesmap, HASHMAP_SIZE, filepaths[elems], len) == -1)
 							errndie(1, "Could not add string '%s' to hashmap", filepaths[elems]);
-						elems++;
+						if (elems++ >= MAXFILES)
+							errndie(1, "Exceeded max files limit");
 					}
 					#ifdef PEDANTIC
 					else {
@@ -126,13 +127,15 @@ int main(int argc, char *argv[]){
 
 	if (elems == 0){
 		fprintf(stderr, "There are no ");
-		for (int i = 0; i<ext_count; i++){
-			fprintf(stderr, "%s, ", exts[i]);
+		if (ext_sizes[0] != 0){
+			for (int i = 0; i<ext_count; i++){
+				fprintf(stderr, "%s, ", exts[i]);
+			}
+			fprintf(stderr, "\b\b ");
 		}
-		fprintf(stderr, "\b\b files in %s.\n", dir);
-		exit(1);
+		fprintf(stderr, "tests in '" C_TEST "%s" NC "'.\n", dir);
+		return 0;
 	}
-
 
 #ifdef NO_MEMORY_ALLOCATION
 	static pid_t pids[MAXFILES];
@@ -147,10 +150,11 @@ int main(int argc, char *argv[]){
 		struct stat st = {0};
 		if (stat(logs_dir_path, &st) == -1){
 			mkdir(logs_dir_path, S_IRWXU | S_IRWXG | S_IRWXO);
-		}
+	}
 	}
 
-	printf("\nRunning " C_NUM "%d " NC "tests in %s\n\n",
+	printf("\nRunning " C_NUM "%d " NC
+			"tests in '" C_TEST "%s" NC "'.\n\n",
 			elems, dir);
 
 	pid_t pid = 0;

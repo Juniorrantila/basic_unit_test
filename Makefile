@@ -2,42 +2,47 @@ CC       := clang
 UNIT     := ./unit
 INSTALL  := install
 
-INCLUDE  := include deps/jrutil/include
+INCLUDE  := include 
 INCLUDE  := $(addprefix -I, $(INCLUDE))
-CFLAGS   := -O3 -fopenmp $(INCLUDE)
 
-LIB_DIRS := deps/jrutil/
+CFLAGS   := -O3 
+
+LIB_DIRS := libs/jrutil
 LIB_DIRS := $(addprefix -L, $(LIB_DIRS))
 LIBS     := jrutil
 LIBS     := $(addprefix -l, $(LIBS))
 
 BIN      := unit
-SUBDIRS  := tests deps/jrutil
+SUBDIRS  := deps/jrutil
+TESTDIR  := tests
 
 BUILDDIR := build
 SRCDIR   := src
 CSRC     := $(wildcard $(SRCDIR)/*.c)
 OBJS     := $(patsubst $(SRCDIR)/%.c, $(BUILDDIR)/%.o, $(CSRC))
 
-TESTDIR  := tests/bin
-
 .PHONY: all
-all: $(SUBDIRS) $(BIN)
+all: $(SUBDIRS) $(BIN) #test
 
 $(BIN): $(OBJS)
 	$(CC) $^ $(CFLAGS) $(LIB_DIRS) $(LIBS) -o $@
+	strip $@
 
 .PHONY: $(SUBDIRS)
 $(SUBDIRS):
 	$(MAKE) -C $@
 
 .PHONY: test
-test:
-	@$(UNIT) $(TESTDIR)
+test: build-tests $(UNIT)
+	@$(UNIT) $(TESTDIR)/bin
+
+.PHONY: build-tests
+build-tests: $(SUBDIRS) $(TESTDIR)
+	$(MAKE) test -C $<
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 .PHONY: install
 install: $(BIN)
